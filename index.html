@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#e9e4da">
+  <title>Our Little Museum</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main id="app">
+    <section id="intro" class="intro-screen" aria-labelledby="introTitle">
+      <div class="intro-card">
+        <p class="intro-kicker">A little world made for us</p>
+        <h1 id="introTitle">Our Museum</h1>
+        <p class="intro-dedication">“Every love story is beautiful, but ours is my favorite.”</p>
+        <button id="startBtn" class="intro-start" type="button">Start</button>
+        <label class="fullscreen-choice"><input id="startFullscreen" type="checkbox" checked> Open in full screen</label>
+        <p id="startStatus" class="intro-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section id="welcome" class="welcome hidden">
+      <div class="welcome-top">
+        <h1>Choose who walks in.</h1>
+      </div>
+      <div class="preview-stage">
+        <canvas id="characterPreview" aria-label="Drag to turn your character"></canvas>
+        <p id="previewStatus" class="preview-status">Loading character…</p>
+      </div>
+      <div class="chooser">
+        <h2>Your look</h2>
+        <div class="choice-row">
+          <button class="choice active" data-character="boy"><span class="choice-initial">B</span><span><b>Boy</b></span></button>
+          <button class="choice" data-character="girl"><span class="choice-initial girl-initial">G</span><span><b>Girl</b></span></button>
+        </div>
+        <div class="choice-row height-row" aria-label="Character height">
+          <button class="height-choice" data-height="short">Short</button>
+          <button class="height-choice active" data-height="average">Average</button>
+          <button class="height-choice" data-height="tall">Tall</button>
+        </div>
+        <fieldset class="color-customizer">
+          <div class="color-tabs" role="tablist" aria-label="Customize character">
+            <button type="button" class="color-tab active" role="tab" aria-selected="true" data-color-tab="skin">Skin</button>
+            <button type="button" class="color-tab" role="tab" aria-selected="false" data-color-tab="hair">Hair</button>
+            <button type="button" class="color-tab" role="tab" aria-selected="false" data-color-tab="eyes">Eyes</button>
+            <button type="button" class="color-tab" role="tab" aria-selected="false" data-color-tab="brows">Brows</button>
+            <button type="button" class="color-tab" role="tab" aria-selected="false" data-color-tab="shirt">Shirt</button>
+            <button type="button" class="color-tab" role="tab" aria-selected="false" data-color-tab="waistcoat">Waistcoat</button>
+            <button type="button" class="color-tab" role="tab" aria-selected="false" data-color-tab="trousers">Trousers</button>
+            <button type="button" class="color-tab" role="tab" aria-selected="false" data-color-tab="shoes">Shoes</button>
+          </div>
+          <div class="palette-heading"><span id="paletteTitle">Skin tone</span><button type="button" id="resetLookBtn">Original</button></div>
+          <div id="colorPalette" class="color-palette" role="tabpanel"></div>
+        </fieldset>
+        <div class="preview-controls" aria-label="Turn character">
+          <button type="button" id="turnLeftBtn" aria-label="Turn character left">‹</button>
+          <span>Drag to turn</span>
+          <button type="button" id="turnRightBtn" aria-label="Turn character right">›</button>
+          <button type="button" id="resetPreviewBtn" class="reset-preview">Reset look</button>
+        </div>
+        <div class="look-divider"></div>
+        <label class="name-label" for="visitorName">Your name <span>This shows above your head.</span></label>
+        <div class="name-row name-row-stacked">
+          <input id="visitorName" maxlength="24" placeholder="Anything you like" autocomplete="off" required>
+          <button id="enterBtn" class="enter" type="button">Enter <span>↗</span></button>
+        </div>
+        <p id="enterError" class="enter-error hidden" role="status" aria-live="polite"></p>
+        <p class="hint">A little world made for us.</p>
+      </div>
+    </section>
+
+    <section id="controlsGate" class="controls-gate hidden" aria-labelledby="controlsTitle">
+      <div class="controls-card">
+        <p class="eyebrow">Before you step inside</p>
+        <h1 id="controlsTitle">A few ways to explore</h1>
+        <p class="controls-intro">Take your time, look around, and enjoy the memories.</p>
+        <div class="controls-grid">
+          <article><span class="control-icon">⌨</span><div><h2>Move around</h2><p>Use <b>W A S D</b> or the arrow keys. Hold <b>Shift + W</b> to run forward faster; hold Shift with another direction to run that way.</p></div></article>
+          <article><span class="control-icon">↔</span><div><h2>Look around</h2><p>Drag with your mouse, or swipe the scene on a touch screen.</p></div></article>
+          <article><span class="control-icon">◎</span><div><h2>Discover the gallery</h2><p>Stand close in front of a frame, face it, then press <b>E</b> or click it to see its photo and quote. Find the upstairs album to browse every photo.</p></div></article>
+          <article><span class="control-icon">⌑</span><div><h2>Sit and explore</h2><p>Use <b>F</b> near the bench. Find the screen to choose a video.</p></div></article>
+          <article><span class="control-icon">↑</span><div><h2>Visit the upper floor</h2><p>Go behind the central wall on its right side, then walk up the stairs.</p></div></article>
+          <article><span class="control-icon">♧</span><div><h2>On a phone or tablet</h2><p>Move with the on-screen joystick and use the action button.</p></div></article>
+          <article><span class="control-icon">♡</span><div><h2>Make it yours</h2><p>Use the top buttons for reactions, camera views, and settings.</p></div></article>
+        </div>
+        <div class="controls-actions">
+          <button id="backToWelcomeBtn" class="controls-back" type="button">Back</button>
+          <button id="enterMuseumBtn" class="intro-start" type="button">Enter museum <span aria-hidden="true">↗</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section id="museum" class="museum hidden">
+      <div id="scene" aria-label="Interactive 3D museum"></div>
+      <div class="hud">
+        <div class="hud-brand">OUR LITTLE MUSEUM <span>✦</span></div>
+        <div class="hud-actions">
+          <button id="soundBtn" title="Pause museum music" aria-label="Pause museum music">♫</button>
+          <button id="cameraModeBtn" title="Switch camera view" aria-label="Switch camera view">◉</button>
+          <button id="reactionsBtn" title="Reactions" aria-label="Open reactions">☺</button>
+          <button id="settingsBtn" title="Settings" aria-label="Open settings">☷</button>
+          <button id="fullscreenBtn" title="Fullscreen">⛶</button>
+          <button id="exitBtn" title="Exit museum">Exit ↗</button>
+        </div>
+      </div>
+      <button id="photoPrompt" class="photo-prompt hidden" type="button" aria-label="View this memory">
+        <span aria-hidden="true">⌕</span><kbd>E</kbd>
+      </button>
+      <div id="reactionMenu" class="reaction-menu hidden" role="menu" aria-label="Reactions">
+        <h2>React</h2>
+        <button type="button" role="menuitem" data-reaction="Wave">👋 <span>Wave</span></button>
+        <button type="button" role="menuitem" data-reaction="Nice">👍 <span>Nice</span></button>
+        <button type="button" role="menuitem" data-reaction="Agree">✔ <span>Agree</span></button>
+        <button type="button" role="menuitem" data-reaction="Celebrate">🎉 <span>Celebrate</span></button>
+        <button type="button" role="menuitem" data-reaction="Blow a kiss">♥ <span>Blow a kiss</span></button>
+        <button type="button" role="menuitem" data-reaction="Dance">♫ <span>Dance</span></button>
+      </div>
+      <section id="settingsPanel" class="settings-panel hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <header class="settings-header"><h2 id="settingsTitle">Settings</h2><button id="closeSettingsBtn" type="button" aria-label="Close settings">×</button></header>
+        <section class="settings-section">
+          <h3>Graphics &amp; performance</h3>
+          <div class="settings-columns">
+            <fieldset><legend>Graphics</legend><div class="settings-options">
+              <button type="button" data-quality="low">Low</button><button type="button" data-quality="balanced">Balanced</button><button type="button" data-quality="high" class="selected">High</button>
+            </div><small>Changes detail, shadows and image resolution.</small></fieldset>
+            <fieldset><legend>FPS</legend><div class="settings-options">
+              <button type="button" data-fps="30">30</button><button type="button" data-fps="60">60</button><button type="button" data-fps="0" class="selected">Max</button>
+            </div><small>Choose a frame limit to reduce power use.</small></fieldset>
+          </div>
+          <label class="settings-toggle"><span><b>Adaptive resolution</b><small>Lower render resolution temporarily if performance drops.</small></span><input id="adaptiveResolutionToggle" type="checkbox"></label>
+          <fieldset><legend>Visual style</legend><div class="settings-options settings-options-wide">
+            <button type="button" data-visual="illustrated">Illustrated</button><button type="button" data-visual="balanced" class="selected">Balanced</button><button type="button" data-visual="photographic">Photographic</button>
+          </div><small>Changes the tone and lighting, not performance.</small></fieldset>
+        </section>
+        <section class="settings-section">
+          <h3>View &amp; controls</h3>
+          <fieldset><legend>Camera</legend><div class="settings-options settings-options-wide">
+            <button type="button" data-camera="shoulder" class="selected">Over the shoulder</button><button type="button" data-camera="eyes">Through their eyes</button>
+          </div></fieldset>
+          <label class="settings-range"><span>Field of view <output id="fovValue">65°</output></span><input id="fovRange" type="range" min="50" max="100" value="65"></label>
+          <label class="settings-range"><span>Look sensitivity <output id="sensitivityValue">1.00×</output></span><input id="sensitivityRange" type="range" min="25" max="200" value="100"></label>
+          <label class="settings-toggle"><b>Names above people</b><input id="namesToggle" type="checkbox" checked></label>
+          <label class="settings-toggle"><b>HUD (top bar and controls)</b><input id="hudToggle" type="checkbox" checked></label>
+          <label class="settings-toggle"><b>Invert vertical look</b><input id="invertLookToggle" type="checkbox"></label>
+        </section>
+        <section class="settings-section">
+          <h3>Audio</h3>
+          <label class="settings-toggle"><b>Sound</b><input id="soundToggle" type="checkbox" checked></label>
+          <label class="settings-range"><span>Volume <output id="volumeValue">100%</output></span><input id="volumeRange" type="range" min="0" max="100" value="100"></label>
+          <label class="settings-range"><span>Music <output id="musicValue">70%</output></span><input id="musicRange" type="range" min="0" max="100" value="70"></label>
+          <label class="settings-range"><span>Sound effects <output id="effectsValue">100%</output></span><input id="effectsRange" type="range" min="0" max="100" value="100"></label>
+        </section>
+      </section>
+      <div id="joystick" class="joystick"><div class="stick"></div></div>
+      <button id="actionBtn" class="action-btn">E · Interact</button>
+      <div id="toast" class="toast"></div>
+    </section>
+  </main>
+
+  <div id="photoModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Memory photo">
+    <button class="modal-close" id="closeModal" aria-label="Close">×</button>
+    <div class="modal-card">
+      <div class="modal-image-wrap">
+        <button id="albumPrevious" class="album-nav album-previous hidden" type="button" aria-label="Previous album photo">‹</button>
+        <img id="modalPhoto" alt="A memory from our collection">
+        <button id="albumNext" class="album-nav album-next hidden" type="button" aria-label="Next album photo">›</button>
+      </div>
+      <div class="modal-caption"><span class="eyebrow">A MOMENT TO KEEP</span><p id="modalText"></p></div>
+      <p id="albumCounter" class="album-counter hidden" aria-live="polite"></p>
+    </div>
+  </div>
+  <input id="videoFile" type="file" accept="video/*" hidden>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+Add your rigged animated character files here:\n- boy.glb\n- girl.glb\n\nEach should include idle and walk animation clips (run recommended). See the main README.\n
