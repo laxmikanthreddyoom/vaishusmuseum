@@ -215,3 +215,51 @@
   .chooser .preview-controls .reset-preview{font-size:9px}
 }
 
+.welcome{height:100vh;height:100dvh}
+@media(max-width:700px){
+  .chooser{
+    bottom:calc(12px + env(safe-area-inset-bottom));
+    right:calc(12px + env(safe-area-inset-right));
+    left:calc(12px + env(safe-area-inset-left));
+    max-height:calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y:auto;
+    overscroll-behavior-y:contain;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-y;
+  }
+}
+@media(pointer:coarse), (any-pointer:coarse), (max-width:700px), (max-height:500px){
+  .joystick{
+    display:block;
+    bottom:calc(22px + env(safe-area-inset-bottom));
+    left:calc(18px + env(safe-area-inset-left));
+  }
+}
+@media(max-height:620px) and (min-width:701px){
+  .welcome{
+    height:100vh;
+    height:100dvh;
+    min-height:100vh;
+    min-height:100dvh;
+    overflow-y:auto;
+  }
+  .welcome-top{top:14px;left:18px}
+  .welcome h1{font-size:clamp(24px,4vw,32px)}
+  .chooser{
+    top:12px;
+    right:12px;
+    bottom:12px;
+    left:auto;
+    width:min(360px,44vw);
+    min-width:280px;
+    max-height:calc(100vh - 24px);
+    max-height:calc(100dvh - 24px);
+    overflow-y:auto;
+    overscroll-behavior-y:contain;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-y;
+    transform:none;
+  }
+}
+

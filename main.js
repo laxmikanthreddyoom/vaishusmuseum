@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const $ = (s) => document.querySelector(s);
 const intro = $("#intro"), welcome = $("#welcome"), museum = $("#museum"), sceneHost = $("#scene");
+const isMobileDevice = matchMedia("(pointer: coarse), (any-pointer: coarse), (max-width: 700px), (max-height: 500px)").matches;
 let chosenCharacter = "boy", chosenHeight = "average", visitorName = "";
 const characterColors = {skin:"#c89570",hair:"#493126",eyes:"#493126",brows:"#493126",shirt:"#244b4b",waistcoat:"#244b4b",trousers:"#343640",shoes:"#343640"};
 const originalCharacterColors = {...characterColors};
@@ -26,10 +27,11 @@ const STAIR_RUN=(STAIR_START_X-STAIR_END_X)/STAIR_STEPS;
 const STAIR_RISE=UPPER_FLOOR_Y/STAIR_STEPS;
 let renderer, scene, camera, clock, avatar, mixer, actions = {}, activeAction, idlePoseAction, armPoseAction, idlePoseTime = 0, sitPose = null, sitOrigin = null, sitRotation = 0;
 let previewRenderer, previewScene, previewCamera, previewFrame, previewMixer;
-let previewAvatar, previewLoadId = 0, previewRotation = 0, previewDragPointer = null, previewLastPointerX = 0;
+let previewAvatar, previewGltf = null, previewAvatarLoaded = false, preparedCharacter = null;
+let previewLoadId = 0, previewRotation = 0, previewDragPointer = null, previewLastPointerX = 0;
 let move = {x:0,z:0}, keys = {}, yaw = 0, cameraPitch = .12, cameraDragPointer = null, cameraLastPointer = {x:0,y:0}, nearby = null, photoMeshes = [], bookDisplay = null, albumIndex = 0, albumOpen = false, sitting = false;
 let visitorNameSprite = null, cameraMode = "shoulder", invertLook = false, namesVisible = true, hudVisible = true;
-let graphicsQuality = "high", fpsLimit = 0, adaptiveResolution = false, visualStyle = "balanced";
+let graphicsQuality = isMobileDevice ? "low" : "balanced", fpsLimit = 0, adaptiveResolution = false, visualStyle = "balanced";
 let soundEnabled = true, audioContext = null, masterGain = null, effectsGain = null;
 let volumeLevel = 1, musicLevel = .7, effectsLevel = 1, reactionSprites = [];
 let museumMusic = null, musicTrackIndex = 0, musicPlaylistActive = false;
@@ -37,6 +39,8 @@ let lastFrameTime = 0, performanceWindowStart = 0, performanceFrameCount = 0, la
 let wallColliders = [];
 let cameraFollowing = true;
 let joystickInitialized = false;
+let avatarLoadId = 0;
+const characterLoadPromises = new Map();
 let videoScreen = null, museumVideo = null, museumVideoTexture = null, museumVideoUrl = null;
 const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
 const PHOTO_DIR = "./assets/pictures/";
@@ -359,13 +363,13 @@ function initCharacterPreview(){
   previewScene=new THREE.Scene();
   previewCamera=new THREE.OrthographicCamera(-1,1,2.75,-2.75,.1,100);
   try{
-    previewRenderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:"low-power"});
+    previewRenderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!isMobileDevice,powerPreference:"low-power"});
   }catch(error){
     console.error("Could not create the character preview:",error);
     $("#previewStatus").textContent="Your browser could not display the 3D character.";
     return;
   }
-  previewRenderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+  previewRenderer.setPixelRatio(Math.min(devicePixelRatio,isMobileDevice?1.15:1.5));
   previewRenderer.outputColorSpace=THREE.SRGBColorSpace;
   previewRenderer.toneMapping=THREE.ACESFilmicToneMapping;
   previewRenderer.toneMappingExposure=1.1;
@@ -430,34 +434,64 @@ function disposePreviewModel(model){
     });
   });
 }
+function loadCharacterGltf(file){
+  const pending=characterLoadPromises.get(file);
+  if(pending)return pending;
+  const load=new GLTFLoader().loadAsync(`./assets/models/${file}`);
+  characterLoadPromises.set(file,load);
+  load.then(
+    ()=>{if(characterLoadPromises.get(file)===load)characterLoadPromises.delete(file);},
+    ()=>{if(characterLoadPromises.get(file)===load)characterLoadPromises.delete(file);}
+  );
+  return load;
+}
 function loadCharacterPreview(){
   if(!previewRenderer)return;
   const loadId=++previewLoadId;
+  const file=chosenCharacter==="girl"?"girl.glb":"boy.glb";
+  const prepared=preparedCharacter?.file===file?preparedCharacter.gltf:null;
+  if(preparedCharacter&&!prepared)disposePreviewModel(preparedCharacter.gltf.scene);
+  preparedCharacter=null;
   previewMixer?.stopAllAction();
   previewMixer=null;
+  previewGltf=null;
+  previewAvatarLoaded=false;
   if(previewAvatar){
     previewScene.remove(previewAvatar);
     disposePreviewModel(previewAvatar);
     previewAvatar=null;
   }
-  const file=chosenCharacter==="girl"?"girl.glb":"boy.glb";
+  previewAvatar=makeFallbackAvatar();
+  applyCharacterColors(previewAvatar);
+  previewScene.add(previewAvatar);
+  updateCharacterPreviewLayout();
   $("#previewStatus").textContent=`Loading ${chosenCharacter}…`;
   $("#previewStatus").classList.remove("hidden");
-  new GLTFLoader().load(`./assets/models/${file}`,gltf=>{
-    if(loadId!==previewLoadId){disposePreviewModel(gltf.scene);return;}
+  const onLoad=gltf=>{
+    if(loadId!==previewLoadId)return;
+    if(previewAvatar){
+      previewScene.remove(previewAvatar);
+      disposePreviewModel(previewAvatar);
+    }
     previewAvatar=gltf.scene;
     applyCharacterColors(previewAvatar);
+    previewAvatar.userData.characterColorsApplied=true;
+    previewGltf=gltf;
+    previewAvatarLoaded=true;
     previewScene.add(previewAvatar);
     updateCharacterPreviewLayout();
     previewMixer=new THREE.AnimationMixer(previewAvatar);
     setStandingPose(previewMixer,gltf.animations,previewAvatar);
     $("#previewStatus").classList.add("hidden");
-  },undefined,error=>{
+  };
+  const onError=error=>{
     if(loadId!==previewLoadId)return;
     console.error(`Could not load ${file} for the entry screen:`,error);
     $("#previewStatus").textContent=`Could not load ${file}. Check the file in assets/models.`;
     $("#previewStatus").classList.remove("hidden");
-  });
+  };
+  if(prepared)onLoad(prepared);
+  else loadCharacterGltf(file).then(onLoad).catch(onError);
 }
 function findStandingPoseTime(model,clip){
   const tracks=clip.tracks.filter(track=>/(?:Hips|UpLeg|Leg|Foot|Toe)/i.test(track.name)).map(track=>{
@@ -535,9 +569,15 @@ function stopCharacterPreview(){
   previewMixer=null;
   if(previewAvatar){
     previewScene.remove(previewAvatar);
-    disposePreviewModel(previewAvatar);
+    if(previewAvatarLoaded&&previewGltf){
+      preparedCharacter={file:chosenCharacter==="girl"?"girl.glb":"boy.glb",gltf:previewGltf};
+    }else{
+      disposePreviewModel(previewAvatar);
+    }
     previewAvatar=null;
   }
+  previewGltf=null;
+  previewAvatarLoaded=false;
   if(previewRenderer){
     previewRenderer.dispose();
     previewRenderer.forceContextLoss();
@@ -550,12 +590,15 @@ function stopCharacterPreview(){
 }
 function getRenderPixelRatio(){
   const qualityScale=graphicsQuality==="low"?.85:graphicsQuality==="balanced"?1:1.35;
-  return Math.min(devicePixelRatio*qualityScale*adaptiveScale,2);
+  return Math.min(devicePixelRatio*qualityScale*adaptiveScale,isMobileDevice?1.15:1.6);
+}
+function getTextureAnisotropy(){
+  return graphicsQuality==="low"||isMobileDevice?1:Math.min(renderer.capabilities.getMaxAnisotropy(),8);
 }
 function applyGraphicsSettings(){
   if(!renderer)return;
   renderer.setPixelRatio(getRenderPixelRatio());
-  renderer.shadowMap.enabled=graphicsQuality!=="low";
+  renderer.shadowMap.enabled=graphicsQuality==="high";
   renderer.shadowMap.needsUpdate=true;
 }
 function applyVisualStyle(){
@@ -694,15 +737,16 @@ function startMuseum(){
   camera = new THREE.PerspectiveCamera(Number($("#fovRange").value),innerWidth/innerHeight,.1,120);
   camera.position.set(0,2.2,10);
   camera.lookAt(0,.95,8);
-  renderer = new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
+  renderer = new THREE.WebGLRenderer({antialias:!isMobileDevice,powerPreference:"high-performance"});
   renderer.setPixelRatio(getRenderPixelRatio()); renderer.setSize(innerWidth,innerHeight);
-  renderer.shadowMap.enabled=graphicsQuality!=="low"; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.shadowMap.enabled=graphicsQuality==="high"; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.1;
   sceneHost.innerHTML=""; sceneHost.appendChild(renderer.domElement);
   clock=new THREE.Clock();
   scene.add(new THREE.HemisphereLight(0xffead1,0x443329,1.35));
   const key=new THREE.DirectionalLight(0xffe6c6,2.4);key.position.set(-5,9,4);key.castShadow=true;key.shadow.mapSize.set(1024,1024);scene.add(key);
   applyVisualStyle();
+  $("#settingsPanel").querySelectorAll("[data-quality]").forEach(button=>button.classList.toggle("selected",button.dataset.quality===graphicsQuality));
   updateAudioLevels();
   startMuseumAudio();
   startMuseumMusic();
@@ -840,7 +884,7 @@ function buildMuseum(){
   marbleTexture.wrapS=marbleTexture.wrapT=THREE.RepeatWrapping;
   marbleTexture.repeat.set(14,14);
   marbleTexture.colorSpace=THREE.SRGBColorSpace;
-  marbleTexture.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  marbleTexture.anisotropy=getTextureAnisotropy();
   const floorMat=new THREE.MeshStandardMaterial({color:"#ffffff",map:marbleTexture,roughness:.34,metalness:.015});
   const tileLine=material("#c6c3bd"), wallMat=material("#a7a297"), ceilingMat=material("#222527"), ceilingTrim=material("#3a3e40"), trim=material("#b59a61"), dark=material("#11100f");
   const groundCeilingMat=new THREE.MeshBasicMaterial({color:"#d5cbbb"});
@@ -1106,7 +1150,7 @@ function createAlbumDisplay(x,z,floorY){
   }
   addPart(new THREE.BoxGeometry(1.95,.11,1.2),wood,0,1.37,0);
   const pageRotation=-Math.PI/2+.2;
-  const anisotropy=renderer.capabilities.getMaxAnisotropy();
+  const anisotropy=getTextureAnisotropy();
   const photoMaterialFor=(memory)=>{
     const texture=new THREE.TextureLoader().load(
       PHOTO_DIR+memory.file,
@@ -1276,7 +1320,7 @@ function createPhotoFrame(mem,pos,index,size={width:1.85,height:2.3}){
   const matWidth=size.width-.18,matHeight=size.height-.18;
   const mat=new THREE.Mesh(new THREE.PlaneGeometry(matWidth,matHeight),new THREE.MeshBasicMaterial({color:"#f5f0e7"}));mat.position.z=.064;group.add(mat);
   const image=new THREE.Mesh(new THREE.PlaneGeometry(matWidth-.12,matHeight-.12),new THREE.MeshBasicMaterial({color:"#ffffff"}));image.position.z=.068;group.add(image);
-  const anisotropy=renderer.capabilities.getMaxAnisotropy();
+  const anisotropy=getTextureAnisotropy();
   const loader=new THREE.TextureLoader();
   loader.load(PHOTO_DIR+mem.file,tex=>{
     tex.colorSpace=THREE.SRGBColorSpace;
@@ -1349,7 +1393,7 @@ function createCaptionPlaque(){
   context.fillText("❤️ Vaish",1024,410);
   const texture=new THREE.CanvasTexture(canvas);
   texture.colorSpace=THREE.SRGBColorSpace;
-  texture.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  texture.anisotropy=getTextureAnisotropy();
   texture.minFilter=THREE.LinearMipmapLinearFilter;
   texture.magFilter=THREE.LinearFilter;
   const face=new THREE.Mesh(new THREE.PlaneGeometry(4.4,.78),new THREE.MeshBasicMaterial({map:texture,toneMapped:false}));
@@ -1371,14 +1415,27 @@ function createNameTag(){
   visitorNameSprite=label;
 }
 function loadAvatar(){
-  const loader=new GLTFLoader(), file=chosenCharacter==="girl"?"./assets/models/girl.glb":"./assets/models/boy.glb";
-  loader.load(file,gltf=>{
+  const file=chosenCharacter==="girl"?"girl.glb":"boy.glb";
+  const loadId=++avatarLoadId;
+  const prepared=preparedCharacter?.file===file?preparedCharacter.gltf:null;
+  if(preparedCharacter&&!prepared)disposePreviewModel(preparedCharacter.gltf.scene);
+  preparedCharacter=null;
+  avatar=makeFallbackAvatar();
+  avatar.position.set(0,0,8);avatar.rotation.y=0;
+  applyCharacterColors(avatar);scene.add(avatar);createNameTag();
+  const onLoad=gltf=>{
+    if(loadId!==avatarLoadId)return;
+    const placeholder=avatar;
+    const position=placeholder.position.clone(),rotation=placeholder.rotation.clone();
+    scene.remove(placeholder);
+    disposePreviewModel(placeholder);
     avatar=gltf.scene;
     // Keep the GLB's armature scale; resizing the static mesh bounds breaks its animated bone transforms.
     avatar.scale.setScalar(chosenHeight==="short"?1.4:chosenHeight==="tall"?1.75:1.55);
-    avatar.position.set(0,0,8);avatar.rotation.y=0;
+    avatar.position.copy(position);avatar.rotation.copy(rotation);
     avatar.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
-    applyCharacterColors(avatar);scene.add(avatar);createNameTag();mixer=new THREE.AnimationMixer(avatar);
+    if(!avatar.userData.characterColorsApplied)applyCharacterColors(avatar);
+    scene.add(avatar);createNameTag();mixer=new THREE.AnimationMixer(avatar);
     const hasIdle=gltf.animations.some(clip=>/idle|stand/i.test(clip.name));
     gltf.animations.forEach(originalClip=>{
       let clip=originalClip;
@@ -1414,10 +1471,13 @@ function loadAvatar(){
     });
     playAnimation("idle");
     mixer.update(0);
-  },undefined,error=>{
+  };
+  const onError=error=>{
+    if(loadId!==avatarLoadId)return;
     console.error(`Could not load ${file}; using the procedural character instead.`,error);
-    avatar=makeFallbackAvatar();avatar.position.set(0,0,8);avatar.rotation.y=0;applyCharacterColors(avatar);scene.add(avatar);createNameTag();
-  });
+  };
+  if(prepared)onLoad(prepared);
+  else loadCharacterGltf(file).then(onLoad).catch(onError);
 }
 function makeFallbackAvatar(){
   const g=new THREE.Group(), skin=material("#c89570"), shirt=material(characterColors.shirt), pants=material("#343640"), hair=material(characterColors.hair);
@@ -1830,6 +1890,7 @@ function closePhoto(){
 }
 function showToast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.classList.remove("show"),2600);}
 function exitMuseum(){
+  avatarLoadId++;
   museumVideo?.pause();
   museumVideo?.removeAttribute("src");
   museumVideo?.load();
